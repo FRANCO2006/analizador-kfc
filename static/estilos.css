@@ -1,0 +1,80 @@
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f6f1ec;
+    color: #222;
+}
+header {
+    background: #c8102e;
+    color: #fff;
+    padding: 1.5rem 1rem;
+    text-align: center;
+}
+header h1 { margin: 0 0 .3rem; font-size: 1.6rem; }
+header p { margin: 0; opacity: .9; }
+main { max-width: 960px; margin: 0 auto; padding: 1rem; }
+.tarjeta {
+    background: #fff;
+    border-radius: 10px;
+    padding: 1.2rem 1.4rem;
+    margin-bottom: 1.2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+}
+h2 { margin-top: 0; color: #c8102e; }
+h3 { margin: 1.2rem 0 .5rem; font-size: 1rem; color: #333; }
+.diccionario { background: #fbf4ef; border-radius: 8px; padding: .4rem 1rem; }
+.diccionario p { margin: .4rem 0; }
+form { display: flex; flex-direction: column; gap: .5rem; }
+textarea {
+    font-family: Consolas, monospace;
+    font-size: 1rem;
+    padding: .6rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+button {
+    align-self: flex-start;
+    margin-top: .5rem;
+    padding: .7rem 1.8rem;
+    border: none;
+    border-radius: 6px;
+    background: #c8102e;
+    color: #fff;
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+}
+button:hover { background: #a00d25; }
+.error { color: #c8102e; font-weight: bold; }
+.tabla-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #e0d6cf; padding: .45rem .6rem; text-align: center; }
+th { background: #fbf4ef; }
+tr.desconocido { background: #fff0f0; }
+.token {
+    display: inline-block;
+    padding: .15rem .55rem;
+    border-radius: 12px;
+    font-size: .8rem;
+    font-weight: bold;
+    color: #fff;
+}
+.producto { background: #c8102e; }
+.cantidad { background: #1f6feb; }
+.pago { background: #2e7d32; }
+.desconocido .token, .token.desconocido { background: #777; }
+details {
+    border: 1px solid #e0d6cf;
+    border-radius: 8px;
+    padding: .6rem 1rem;
+    margin-bottom: .8rem;
+}
+summary { cursor: pointer; font-size: 1.05rem; }
+summary code { font-size: 1.05rem; margin-right: .4rem; }
+.er code { font-size: 1.1rem; background: #fbf4ef; padding: .2rem .5rem; border-radius: 4px; }
+.grafo { overflow-x: auto; text-align: center; }
+.grafo svg { max-width: 100%; height: auto; }
+.transiciones { font-family: Consolas, monospace; }
+.nota { color: #666; font-size: .9rem; }
+footer { text-align: center; color: #777; padding: 1rem; font-size: .9rem; }
