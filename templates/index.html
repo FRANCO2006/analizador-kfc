@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Analizador de Pedidos KFC</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='estilos.css') }}">
+</head>
+<body>
+<header>
+    <h1>Analizador Léxico de Pedidos KFC</h1>
+    <p>Teoría de la Computación · Lenguajes formales y autómatas</p>
+</header>
+
+<main>
+    <!-- ETAPA 1: Enunciado -->
+    <section class="tarjeta">
+        <h2>Enunciado del proyecto</h2>
+        <p>{{ enunciado }}</p>
+        <div class="diccionario">
+            <p><b>PRODUCTO:</b> {{ productos | join(', ') }}</p>
+            <p><b>CANTIDAD:</b> números enteros (1, 2, 12…)</p>
+            <p><b>PAGO:</b> {{ pagos | join(', ') }}</p>
+        </div>
+    </section>
+
+    <!-- ETAPA 2: Entrada del lenguaje -->
+    <section class="tarjeta">
+        <h2>Lenguaje inicial</h2>
+        <form method="POST" enctype="multipart/form-data">
+            <label for="texto">Escribe los pedidos (uno por línea):</label>
+            <textarea id="texto" name="texto" rows="5">{{ texto }}</textarea>
+
+            <label for="archivo">…o sube un archivo .txt:</label>
+            <input type="file" id="archivo" name="archivo" accept=".txt">
+
+            <button type="submit">Analizar</button>
+        </form>
+        {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    </section>
+
+    {% if lexemas %}
+    <!-- TOKENS Y LEXEMAS -->
+    <section class="tarjeta">
+        <h2>Tokens y lexemas</h2>
+        <div class="tabla-scroll">
+        <table>
+            <thead><tr><th>N.º</th><th>Línea</th><th>Lexema</th><th>Token</th></tr></thead>
+            <tbody>
+            {% for l in lexemas %}
+                <tr class="{{ 'desconocido' if l.token == 'DESCONOCIDO' }}">
+                    <td>{{ loop.index }}</td><td>{{ l.linea }}</td>
+                    <td><code>{{ l.lexema }}</code></td>
+                    <td><span class="token {{ l.token|lower }}">{{ l.token }}</span></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </section>
+
+    <!-- ETAPA 2 (4 a 9): ER, AFND, AFD, tabla, transiciones, quíntupla -->
+    <section class="tarjeta">
+        <h2>Autómatas por lexema</h2>
+        <p class="nota">Los gráficos se generan desde el código (lenguaje DOT de Graphviz), no son imágenes.</p>
+        {% for a in automatas %}
+        <details {{ 'open' if loop.first }}>
+            <summary><code>{{ a.lexema }}</code> <span class="token {{ a.token|lower }}">{{ a.token }}</span></summary>
+
+            <h3>4. Expresión Regular</h3>
+            <p class="er">ER = <code>{{ a.er }}</code></p>
+
+            <h3>5. AFND (método de Thompson · {{ a.afnd_estados }} estados)</h3>
+            <div class="grafo" data-dot="{{ a.dot_afnd }}"></div>
+
+            <h3>6. AFD (construcción de subconjuntos)</h3>
+            <div class="grafo" data-dot="{{ a.dot_afd }}"></div>
+
+            <h3>7. Tabla de transiciones</h3>
+            <div class="tabla-scroll">
+            <table>
+                <thead><tr><th></th><th>Estado</th>
+                    {% for s in a.alfabeto %}<th>{{ s }}</th>{% endfor %}
+                    <th>Estados del AFND</th></tr></thead>
+                <tbody>
+                {% for f in a.tabla %}
+                    <tr><td>{{ f.marca }}</td><td><b>{{ f.estado }}</b></td>
+                        {% for c in f.celdas %}<td>{{ c }}</td>{% endfor %}
+                        <td>{{ '{' }}{{ f.subconjunto | join(', ') }}{{ '}' }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            <p class="nota">→ estado inicial · * estado final · — sin transición</p>
+
+            <h3>8. Transiciones</h3>
+            <ul class="transiciones">
+                {% for t in a.transiciones %}<li>{{ t }}</li>{% endfor %}
+            </ul>
+
+            <h3>9. Quíntupla</h3>
+            <p class="er">M = (Q, Σ, δ, q0, F)</p>
+            <ul class="transiciones">
+                {% for k, v in a.quintupla.items() %}<li><b>{{ k }}</b> = {{ v }}</li>{% endfor %}
+            </ul>
+        </details>
+        {% endfor %}
+    </section>
+    {% endif %}
+</main>
+
+<footer>Gianfranco Hidalgo Bacilio · USIL</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@viz-js/viz@3.17.0/dist/viz-global.js"></script>
+<script>
+    Viz.instance().then(function (viz) {
+        document.querySelectorAll(".grafo").forEach(function (div) {
+            div.appendChild(viz.renderSVGElement(div.dataset.dot));
+        });
+    });
+</script>
+</body>
+</html>
