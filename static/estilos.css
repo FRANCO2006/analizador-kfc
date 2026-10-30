@@ -78,3 +78,8 @@ summary code { font-size: 1.05rem; margin-right: .4rem; }
 .transiciones { font-family: Consolas, monospace; }
 .nota { color: #666; font-size: .9rem; }
 footer { text-align: center; color: #777; padding: 1rem; font-size: .9rem; }
+td.izq { text-align: left; }
+.resumen { padding: .7rem 1rem; border-radius: 8px; font-size: 1.05rem; }
+.ok-fondo { background: #e8f5e9; color: #1b5e20; }
+.error-fondo { background: #fff0f0; color: #a00d25; }
+ol { margin: .3rem 0; }
