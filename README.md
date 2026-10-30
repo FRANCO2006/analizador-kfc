@@ -11,6 +11,7 @@ Proyecto de Teoría de la Computación (USIL). Aplicación web en Flask que:
 7. Muestra la **tabla de transiciones**.
 8. Lista las **transiciones** δ.
 9. Muestra la **quíntupla** M = (Q, Σ, δ, q0, F).
+10. Valida cada pedido con un **analizador sintáctico LR (SLR)**: gramática, tabla LR, pasos del análisis, derivación y **árbol sintáctico**.
 
 Los gráficos de los autómatas se generan desde el código (lenguaje DOT) y se dibujan en el navegador con viz.js.
 
@@ -18,6 +19,8 @@ Los gráficos de los autómatas se generan desde el código (lenguaje DOT) y se 
 
 - `app.py` — servidor Flask (rutas y formulario)
 - `automatas.py` — análisis léxico, ER, AFND, AFD, tabla y quíntupla
+- `sintactico.py` — gramática, colección LR(0), tabla SLR, análisis LR y árbol sintáctico
+- `pruebas/analizador-kfc.postman_collection.json` — 17 casos de prueba automatizados (Postman / Newman)
 - `templates/index.html` — interfaz
 - `static/estilos.css` — estilos
 - `ejemplo.txt` — archivo de prueba
@@ -35,3 +38,11 @@ Abrir http://127.0.0.1:8080
 
 - Build Command: `pip install -r requirements.txt`
 - Start Command: `gunicorn app:app`
+
+## Pruebas automatizadas (Postman / Newman)
+
+```
+npx newman run pruebas/analizador-kfc.postman_collection.json
+```
+
+La API `POST /api/analizar` recibe `{"texto": "POLLO 2 EFECTIVO"}` y devuelve lexemas, tokens, expresiones regulares, AFD y validez de cada pedido.
