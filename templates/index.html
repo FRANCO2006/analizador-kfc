@@ -106,6 +106,68 @@
         </details>
         {% endfor %}
     </section>
+
+    <!-- ANÁLISIS SINTÁCTICO LR -->
+    <section class="tarjeta">
+        <h2>Análisis sintáctico LR</h2>
+        {% set validos = pedidos | selectattr('valida') | list | length %}
+        <p class="resumen {{ 'ok-fondo' if validos == pedidos|length else 'error-fondo' }}">
+            Pedidos válidos: <b>{{ validos }} de {{ pedidos|length }}</b>
+            {% if validos == pedidos|length %}: todos listos para enviar a cocina.{% else %}: revisa los pedidos marcados antes de enviarlos.{% endif %}
+        </p>
+
+        <h3>Gramática libre de contexto G = (N, T, P, S)</h3>
+        <ul class="transiciones">
+            <li><b>N</b> = {S', PEDIDO, ITEMS, ITEM}</li>
+            <li><b>T</b> = {producto, cantidad, pago}</li>
+            <li><b>S</b> = PEDIDO</li>
+            <li><b>P</b>:
+                <ol start="0">{% for izq, der in producciones %}<li>{{ izq }} → {{ der | join(' ') }}</li>{% endfor %}</ol>
+            </li>
+        </ul>
+
+        <details>
+            <summary>Colección canónica LR(0)</summary>
+            <div class="tabla-scroll"><table>
+                <thead><tr><th>Estado</th><th>Ítems</th></tr></thead>
+                <tbody>{% for e in coleccion %}<tr><td>I{{ e.estado }}</td><td class="izq">{{ e['items'] | join(' ; ') }}</td></tr>{% endfor %}</tbody>
+            </table></div>
+        </details>
+
+        <h3>Tabla de análisis LR (SLR)</h3>
+        <div class="tabla-scroll"><table>
+            <thead>
+                <tr><th rowspan="2">Estado</th><th colspan="{{ cols_a|length }}">ACCIÓN</th><th colspan="{{ cols_g|length }}">IR_A</th></tr>
+                <tr>{% for c in cols_a %}<th>{{ c }}</th>{% endfor %}{% for c in cols_g %}<th>{{ c }}</th>{% endfor %}</tr>
+            </thead>
+            <tbody>{% for f in filas_lr %}
+                <tr><td><b>{{ f.estado }}</b></td>{% for c in f.accion %}<td>{{ c }}</td>{% endfor %}{% for c in f.ir_a %}<td>{{ c }}</td>{% endfor %}</tr>
+            {% endfor %}</tbody>
+        </table></div>
+        <p class="nota">d = desplazar · r = reducir con la producción indicada · acc = aceptar</p>
+
+        <h3>Análisis de cada pedido</h3>
+        {% for p in pedidos %}
+        <details {{ 'open' if loop.first }}>
+            <summary><code>{{ p.texto }}</code>
+                {% if p.valida %}<span class="token pago">VÁLIDO</span>{% else %}<span class="token producto">INVÁLIDO</span>{% endif %}</summary>
+            {% if p.error %}<p class="error">{{ p.error }}</p>{% endif %}
+            {% if p.pasos %}
+            <h3>Pasos del análisis LR</h3>
+            <div class="tabla-scroll"><table>
+                <thead><tr><th>Paso</th><th>Pila</th><th>Símbolos</th><th>Entrada</th><th>Acción</th></tr></thead>
+                <tbody>{% for s in p.pasos %}<tr><td>{{ loop.index }}</td><td>{{ s.pila }}</td><td>{{ s.simbolos }}</td><td>{{ s.entrada }}</td><td class="izq">{{ s.accion }}</td></tr>{% endfor %}</tbody>
+            </table></div>
+            {% endif %}
+            {% if p.valida %}
+            <h3>Derivación por la derecha</h3>
+            <p class="transiciones">{{ p.derivacion | join(' ⇒ ') }}</p>
+            <h3>Árbol sintáctico</h3>
+            <div class="grafo" data-dot="{{ p.dot_arbol }}"></div>
+            {% endif %}
+        </details>
+        {% endfor %}
+    </section>
     {% endif %}
 </main>
 
