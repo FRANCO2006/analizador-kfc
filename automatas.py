@@ -233,6 +233,24 @@ def tabla_afd(afd):
     return filas
 
 
+def tabla_afnd(afnd):
+    """Tabla de transiciones del AFND: cada celda es el conjunto de estados destino."""
+    alfabeto = []
+    for _, sm, _ in afnd["trans"]:
+        if sm != EPS and sm not in alfabeto:
+            alfabeto.append(sm)
+    columnas = alfabeto + [EPS]
+    filas = []
+    for q in afnd["estados"]:
+        marca = ("→" if q == afnd["inicio"] else "") + ("*" if q in afnd["finales"] else "")
+        celdas = []
+        for a in columnas:
+            dest = sorted(d for o, sm, d in afnd["trans"] if o == q and sm == a)
+            celdas.append("{" + ", ".join(f"p{d}" for d in dest) + "}" if dest else "—")
+        filas.append({"marca": marca, "estado": f"p{q}", "celdas": celdas})
+    return columnas, filas
+
+
 def lista_transiciones(afd):
     return [f"δ({o}, {a}) = {d}" for (o, a), d in afd["trans"].items()]
 
@@ -254,8 +272,9 @@ def _esc(texto):
 def dot_afnd(afnd, rankdir="LR"):
     lineas = ['digraph AFND {', f'rankdir={rankdir};', 'node [shape=circle, fontname="Arial"];',
               'inicio [shape=point];']
-    for f in afnd["finales"]:
-        lineas.append(f'{f} [shape=doublecircle];')
+    for e in afnd["estados"]:
+        forma = ", shape=doublecircle" if e in afnd["finales"] else ""
+        lineas.append(f'{e} [label="p{e}"{forma}];')
     lineas.append(f'inicio -> {afnd["inicio"]};')
     for o, s, d in afnd["trans"]:
         lineas.append(f'{o} -> {d} [label="{_esc(s)}"];')
@@ -336,8 +355,9 @@ def procesar_tokens(lexemas):
         for l in lexemas:
             if l["token"] == t["token"] and l["lexema"] not in encontrados:
                 encontrados.append(l["lexema"])
+        cols_afnd, filas_afnd = tabla_afnd(afnd)
         salida.append({
-            **t, "encontrados": encontrados,
+            **t, "encontrados": encontrados, "cols_afnd": cols_afnd, "tabla_afnd": filas_afnd,
             "afnd_estados": len(afnd["estados"]), "afd_estados": len(afd["estados"]),
             "dot_afnd": dot_afnd(afnd, "LR" if t["token"] == "CANTIDAD" else "TB"),
             "dot_afd": dot_afd(afd, "LR" if t["token"] == "CANTIDAD" else "TB"),
@@ -387,7 +407,7 @@ def a_jflap(nombre, tipo):
     if tipo == "afnd":
         estados = afnd["estados"]
         ids = {e: i for i, e in enumerate(estados)}
-        nombres = {e: f"q{e}" for e in estados}
+        nombres = {e: f"p{e}" for e in estados}
         inicio, finales = afnd["inicio"], set(afnd["finales"])
         trans = afnd["trans"]
     else:
