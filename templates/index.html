@@ -96,13 +96,29 @@
         <details {{ 'open' if loop.first }}>
             <summary><span class="token {{ t.token|lower }}">{{ t.token }}</span> <code>{{ t.er }}</code></summary>
             <div class="maquinas">
+                <div class="cab vacia"></div>
                 <div class="cab">AFND <small>({{ t.afnd_estados }} estados)</small></div>
                 <div class="cab flecha">------&gt;</div>
                 <div class="cab">AFD <small>({{ t.afd_estados }} estados)</small></div>
+
+                <div class="fila-nombre">Gráfico</div>
                 <div class="celda"><div class="grafo" data-dot="{{ t.dot_afnd }}"></div></div>
                 <div class="celda flecha">→</div>
                 <div class="celda"><div class="grafo" data-dot="{{ t.dot_afd }}"></div></div>
+
+                <div class="fila-nombre">Tabla</div>
+                <div class="celda"><div class="tabla-scroll tabla-maq"><table>
+                    <thead><tr><th></th><th>Estado</th>{% for s in t.cols_afnd %}<th>{{ s }}</th>{% endfor %}</tr></thead>
+                    <tbody>{% for f in t.tabla_afnd %}<tr><td>{{ f.marca }}</td><td><b>{{ f.estado }}</b></td>{% for c in f.celdas %}<td>{{ c }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+                </table></div></div>
+                <div class="celda flecha">→</div>
+                <div class="celda"><div class="tabla-scroll tabla-maq"><table>
+                    <thead><tr><th></th><th>Estado</th>{% for s in t.alfabeto %}<th>{{ s }}</th>{% endfor %}<th>Estados del AFND</th></tr></thead>
+                    <tbody>{% for f in t.tabla %}<tr><td>{{ f.marca }}</td><td><b>{{ f.estado }}</b></td>{% for c in f.celdas %}<td>{{ c }}</td>{% endfor %}
+                        <td>{{ '{' }}{% for e in f.subconjunto %}p{{ e }}{{ ', ' if not loop.last }}{% endfor %}{{ '}' }}</td></tr>{% endfor %}</tbody>
+                </table></div></div>
             </div>
+            <p class="nota">Estados del AFND: p0, p1, … · estados del AFD: q0, q1, … · → estado inicial · * estado final · — sin transición · ε = transición vacía</p>
             <p class="jflap"><b>Validar en JFLAP:</b>
                 <a class="boton" href="{{ url_for('jflap', token=t.token, tipo='afnd') }}">Descargar AFND (.jff)</a>
                 <a class="boton" href="{{ url_for('jflap', token=t.token, tipo='afd') }}">Descargar AFD (.jff)</a>
@@ -111,22 +127,7 @@
         </details>
         {% endfor %}
 
-        <h3>2.3 Tabla de transiciones</h3>
-        {% for t in tokens %}
-        <details {{ 'open' if loop.first }}>
-            <summary>AFD de <span class="token {{ t.token|lower }}">{{ t.token }}</span></summary>
-            <div class="tabla-scroll"><table>
-                <thead><tr><th></th><th>Estado</th>{% for s in t.alfabeto %}<th>{{ s }}</th>{% endfor %}<th>Estados del AFND</th></tr></thead>
-                <tbody>{% for f in t.tabla %}
-                    <tr><td>{{ f.marca }}</td><td><b>{{ f.estado }}</b></td>{% for c in f.celdas %}<td>{{ c }}</td>{% endfor %}
-                        <td>{{ '{' }}{{ f.subconjunto | join(', ') }}{{ '}' }}</td></tr>
-                {% endfor %}</tbody>
-            </table></div>
-            <p class="nota">→ estado inicial · * estado final · — sin transición</p>
-        </details>
-        {% endfor %}
-
-        <h3>2.4 Transiciones y quíntupla</h3>
+        <h3>2.3 Transiciones y quíntupla</h3>
         {% for t in tokens %}
         <details>
             <summary>AFD de <span class="token {{ t.token|lower }}">{{ t.token }}</span></summary>
@@ -140,7 +141,7 @@
 
     <!-- ANÁLISIS SINTÁCTICO LR -->
     <section class="tarjeta">
-        <h3 class="sub">2.5 Análisis sintáctico LR</h3>
+        <h3 class="sub">2.4 Análisis sintáctico LR</h3>
         {% set sint = pedidos | selectattr('sintaxis_ok') | list | length %}
         <p class="resumen {{ 'ok-fondo' if sint == pedidos|length else 'error-fondo' }}">
             Pedidos sintácticamente correctos: <b>{{ sint }} de {{ pedidos|length }}</b>
@@ -201,7 +202,7 @@
 
     <!-- ANÁLISIS SEMÁNTICO -->
     <section class="tarjeta">
-        <h3 class="sub">2.6 Análisis semántico</h3>
+        <h3 class="sub">2.5 Análisis semántico</h3>
         <p>Se aplica a los pedidos que pasaron el análisis sintáctico. Reglas del negocio:</p>
         <ul class="transiciones">{% for c, r in reglas %}<li><b>{{ c }}:</b> {{ r }}</li>{% endfor %}</ul>
         <div class="tabla-scroll"><table>
