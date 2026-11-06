@@ -11,9 +11,11 @@ import re
 # ---------------------------------------------------------------
 # 1. DICCIONARIO DEL LENGUAJE (pedidos de KFC)
 # ---------------------------------------------------------------
-PRODUCTOS = {"POLLO", "ALITAS", "HAMBURGUESA", "PAPAS", "GASEOSA",
-             "COMBO", "NUGGETS", "ENSALADA", "HELADO", "POPCORN"}
-PAGOS = {"EFECTIVO", "TARJETA", "YAPE", "PLIN"}
+LISTA_PRODUCTOS = ["POLLO", "ALITAS", "HAMBURGUESA", "PAPAS", "GASEOSA",
+                   "COMBO", "NUGGETS", "ENSALADA", "HELADO", "POPCORN"]
+LISTA_PAGOS = ["EFECTIVO", "TARJETA", "YAPE", "PLIN"]
+PRODUCTOS = set(LISTA_PRODUCTOS)
+PAGOS = set(LISTA_PAGOS)
 
 DIGITO = "[0-9]"          # clase de caracteres usada como un solo símbolo
 
@@ -109,8 +111,10 @@ def _a_postfija(items):
     return salida
 
 
-def er_a_afnd(er):
-    """Construye el AFND-ε de Thompson. Estados numerados 0, 1, 2, ..."""
+def er_a_afnd(er, compacto=False):
+    """Construye el AFND-ε de Thompson. Estados numerados 0, 1, 2, ...
+    compacto=True une directamente los fragmentos concatenados (sin ε),
+    lo que produce un AFND más pequeño y legible para los tokens."""
     trans = []                 # (origen, símbolo, destino)
     contador = [0]
 
@@ -118,7 +122,7 @@ def er_a_afnd(er):
         contador[0] += 1
         return contador[0] - 1
 
-    pila = []
+    pila, uniones = [], set()
     for tipo, val in _a_postfija(_tokens_er(er)):
         if tipo == "SIM":
             s, f = nuevo(), nuevo()
@@ -126,14 +130,27 @@ def er_a_afnd(er):
             pila.append((s, f))
         elif val == ".":
             b, a = pila.pop(), pila.pop()
-            trans.append((a[1], EPS, b[0]))
-            pila.append((a[0], b[1]))
+            if compacto:
+                # el estado inicial de b se fusiona con el final de a
+                trans[:] = [(a[1] if o == b[0] else o, sm, a[1] if d == b[0] else d)
+                            for o, sm, d in trans]
+                fin_b = a[1] if b[1] == b[0] else b[1]
+                pila.append((a[0], fin_b))
+            else:
+                trans.append((a[1], EPS, b[0]))
+                pila.append((a[0], b[1]))
         elif val == "|":
             b, a = pila.pop(), pila.pop()
+            if compacto and a in uniones:
+                # unión n-aria: la nueva alternativa se cuelga de la misma unión
+                trans += [(a[0], EPS, b[0]), (b[1], EPS, a[1])]
+                pila.append(a)
+                continue
             s, f = nuevo(), nuevo()
             trans += [(s, EPS, a[0]), (s, EPS, b[0]),
                       (a[1], EPS, f), (b[1], EPS, f)]
             pila.append((s, f))
+            uniones.add((s, f))
         elif val in "*+":
             a = pila.pop()
             s, f = nuevo(), nuevo()
@@ -143,8 +160,21 @@ def er_a_afnd(er):
             pila.append((s, f))
 
     inicio, final = pila.pop()
-    return {"estados": list(range(contador[0])), "inicio": inicio,
-            "finales": [final], "trans": trans}
+    if not compacto:
+        return {"estados": list(range(contador[0])), "inicio": inicio,
+                "finales": [final], "trans": trans}
+    # renumerar en orden de recorrido (BFS) desde el estado inicial
+    orden, cola = [inicio], [inicio]
+    while cola:
+        e = cola.pop(0)
+        for o, _, d in trans:
+            if o == e and d not in orden:
+                orden.append(d)
+                cola.append(d)
+    nuevo_id = {e: i for i, e in enumerate(orden)}
+    trans = [(nuevo_id[o], sm, nuevo_id[d]) for o, sm, d in trans]
+    return {"estados": list(range(len(orden))), "inicio": 0,
+            "finales": [nuevo_id[final]], "trans": trans}
 
 
 # ---------------------------------------------------------------
@@ -221,8 +251,8 @@ def _esc(texto):
     return texto.replace('"', '\\"')
 
 
-def dot_afnd(afnd):
-    lineas = ['digraph AFND {', 'rankdir=LR;', 'node [shape=circle, fontname="Arial"];',
+def dot_afnd(afnd, rankdir="LR"):
+    lineas = ['digraph AFND {', f'rankdir={rankdir};', 'node [shape=circle, fontname="Arial"];',
               'inicio [shape=point];']
     for f in afnd["finales"]:
         lineas.append(f'{f} [shape=doublecircle];')
@@ -233,8 +263,8 @@ def dot_afnd(afnd):
     return "\n".join(lineas)
 
 
-def dot_afd(afd):
-    lineas = ['digraph AFD {', 'rankdir=LR;', 'node [shape=circle, fontname="Arial"];',
+def dot_afd(afd, rankdir="LR"):
+    lineas = ['digraph AFD {', f'rankdir={rankdir};', 'node [shape=circle, fontname="Arial"];',
               'inicio [shape=point];']
     for f in afd["finales"]:
         lineas.append(f'{f} [shape=doublecircle];')
@@ -268,3 +298,114 @@ def procesar(texto):
             "quintupla": quintupla(afd),
         })
     return lexemas, automatas
+
+
+# ---------------------------------------------------------------
+# AUTÓMATAS POR TIPO DE TOKEN (agrupador)
+# ---------------------------------------------------------------
+TOKENS = [
+    {"token": "PRODUCTO", "lexemas": LISTA_PRODUCTOS,
+     "er": "(" + "|".join(LISTA_PRODUCTOS) + ")",
+     "lenguaje": "P = {" + ", ".join(LISTA_PRODUCTOS) + "}",
+     "notacion": "P", "prueba_ok": "POLLO", "prueba_mal": "PIZZA"},
+    {"token": "CANTIDAD", "lexemas": ["1", "2", "3", "12", "…"],
+     "er": DIGITO + "+",
+     "lenguaje": "D = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}",
+     "notacion": "D+", "prueba_ok": "12", "prueba_mal": "DOS"},
+    {"token": "PAGO", "lexemas": LISTA_PAGOS,
+     "er": "(" + "|".join(LISTA_PAGOS) + ")",
+     "lenguaje": "M = {" + ", ".join(LISTA_PAGOS) + "}",
+     "notacion": "M", "prueba_ok": "YAPE", "prueba_mal": "BITCOIN"},
+]
+
+
+def automatas_token(nombre):
+    """AFND (Thompson) y AFD (subconjuntos) de la ER de un tipo de token."""
+    t = next(x for x in TOKENS if x["token"] == nombre)
+    afnd = er_a_afnd(t["er"], compacto=True)
+    afd = afnd_a_afd(afnd)
+    return t, afnd, afd
+
+
+def procesar_tokens(lexemas):
+    """Tabla agrupada por token + AFND, AFD, tabla y quíntupla de cada token."""
+    salida = []
+    for t in TOKENS:
+        _, afnd, afd = automatas_token(t["token"])
+        encontrados = []
+        for l in lexemas:
+            if l["token"] == t["token"] and l["lexema"] not in encontrados:
+                encontrados.append(l["lexema"])
+        salida.append({
+            **t, "encontrados": encontrados,
+            "afnd_estados": len(afnd["estados"]), "afd_estados": len(afd["estados"]),
+            "dot_afnd": dot_afnd(afnd, "LR" if t["token"] == "CANTIDAD" else "TB"),
+            "dot_afd": dot_afd(afd, "LR" if t["token"] == "CANTIDAD" else "TB"),
+            "alfabeto": afd["alfabeto"], "tabla": tabla_afd(afd),
+            "transiciones": lista_transiciones(afd), "quintupla": quintupla(afd),
+        })
+    desconocidos = []
+    for l in lexemas:
+        if l["token"] == "DESCONOCIDO" and l["lexema"] not in desconocidos:
+            desconocidos.append(l["lexema"])
+    return salida, desconocidos
+
+
+# ---------------------------------------------------------------
+# EXPORTACIÓN A JFLAP (.jff) PARA VALIDAR LOS AUTÓMATAS
+# ---------------------------------------------------------------
+def _simbolos_jflap(simbolo):
+    if simbolo == EPS:
+        return [""]
+    if simbolo == DIGITO:
+        return [str(d) for d in range(10)]
+    return [simbolo]
+
+
+def _posiciones(estados, inicio, aristas):
+    """Coloca los estados por niveles (BFS) para que se vean ordenados en JFLAP."""
+    nivel, cola = {inicio: 0}, [inicio]
+    while cola:
+        e = cola.pop(0)
+        for o, d in aristas:
+            if o == e and d not in nivel:
+                nivel[d] = nivel[e] + 1
+                cola.append(d)
+    usados, pos = {}, {}
+    for e in estados:
+        n = nivel.get(e, 0)
+        fila = usados.get(n, 0)
+        usados[n] = fila + 1
+        pos[e] = (60 + n * 110, 60 + fila * 80)
+    return pos
+
+
+def a_jflap(nombre, tipo):
+    """Devuelve el XML .jff del AFND o del AFD del token indicado."""
+    from xml.sax.saxutils import escape
+    _, afnd, afd = automatas_token(nombre)
+    if tipo == "afnd":
+        estados = afnd["estados"]
+        ids = {e: i for i, e in enumerate(estados)}
+        nombres = {e: f"q{e}" for e in estados}
+        inicio, finales = afnd["inicio"], set(afnd["finales"])
+        trans = afnd["trans"]
+    else:
+        estados = afd["estados"]
+        ids = {e: i for i, e in enumerate(estados)}
+        nombres = {e: e for e in estados}
+        inicio, finales = afd["inicio"], set(afd["finales"])
+        trans = [(o, a, d) for (o, a), d in afd["trans"].items()]
+    pos = _posiciones(estados, inicio, [(o, d) for o, _, d in trans])
+    x = ['<?xml version="1.0" encoding="UTF-8" standalone="no"?>',
+         "<!--Generado por el Analizador de Pedidos KFC-->",
+         "<structure>", "<type>fa</type>", "<automaton>"]
+    for e in estados:
+        x.append(f'<state id="{ids[e]}" name="{nombres[e]}"><x>{pos[e][0]}.0</x><y>{pos[e][1]}.0</y>'
+                 + ("<initial/>" if e == inicio else "") + ("<final/>" if e in finales else "") + "</state>")
+    for o, s, d in trans:
+        for sim in _simbolos_jflap(s):
+            leer = f"<read>{escape(sim)}</read>" if sim else "<read/>"
+            x.append(f"<transition><from>{ids[o]}</from><to>{ids[d]}</to>{leer}</transition>")
+    x += ["</automaton>", "</structure>"]
+    return "\n".join(x)
