@@ -8,112 +8,142 @@
 </head>
 <body>
 <header>
-    <h1>Analizador Léxico de Pedidos KFC</h1>
-    <p>Teoría de la Computación · Lenguajes formales y autómatas</p>
+    <h1>Analizador de Pedidos KFC</h1>
+    <p>Análisis léxico, sintáctico y semántico (compilador) · Teoría de la Computación</p>
 </header>
 
 <main>
-    <!-- ETAPA 1: Enunciado -->
+    <!-- A) CASO -->
     <section class="tarjeta">
-        <h2>Enunciado del proyecto</h2>
+        <h2 class="seccion">A) CASO</h2>
+        <h3>1. Proceso que realiza el analizador (compilador)</h3>
         <p>{{ enunciado }}</p>
+        <div class="flujo">
+            <span>Pedido (archivo .txt)</span><b>→</b>
+            {% for f, _ in fases %}<span class="fase">{{ f }}</span><b>→</b>{% endfor %}
+            <span>Pedido validado a cocina</span>
+        </div>
+        <ol class="fases">
+            {% for f, d in fases %}<li><b>{{ f }}:</b> {{ d }}</li>{% endfor %}
+        </ol>
         <div class="diccionario">
             <p><b>PRODUCTO:</b> {{ productos | join(', ') }}</p>
             <p><b>CANTIDAD:</b> números enteros (1, 2, 12…)</p>
             <p><b>PAGO:</b> {{ pagos | join(', ') }}</p>
         </div>
-    </section>
 
-    <!-- ETAPA 2: Entrada del lenguaje -->
-    <section class="tarjeta">
-        <h2>Lenguaje inicial</h2>
+        <h3>2. Ingreso de datos</h3>
         <form method="POST" enctype="multipart/form-data">
-            <label for="texto">Escribe los pedidos (uno por línea):</label>
-            <textarea id="texto" name="texto" rows="5">{{ texto }}</textarea>
-
-            <label for="archivo">…o sube un archivo .txt:</label>
+            <label for="archivo">Carga un <b class="resalta">archivo</b> .txt con los pedidos (uno por línea):</label>
             <input type="file" id="archivo" name="archivo" accept=".txt">
-
+            <p class="nota">¿No tienes uno? <a href="{{ url_for('ejemplo') }}">Descarga un archivo de ejemplo</a>.</p>
+            <label for="texto">…o escribe los pedidos aquí:</label>
+            <textarea id="texto" name="texto" rows="4">{{ texto }}</textarea>
             <button type="submit">Analizar</button>
         </form>
         {% if error %}<p class="error">{{ error }}</p>{% endif %}
     </section>
 
     {% if lexemas %}
-    <!-- TOKENS Y LEXEMAS -->
+    <!-- B) PROCESO INTERNO -->
     <section class="tarjeta">
-        <h2>Tokens y lexemas</h2>
+        <h2 class="seccion">B) PROCESO INTERNO</h2>
+
+        <h3>2.1 Análisis léxico</h3>
         <div class="tabla-scroll">
-        <table>
-            <thead><tr><th>N.º</th><th>Línea</th><th>Lexema</th><th>Token</th></tr></thead>
+        <table class="verde">
+            <thead>
+                <tr><th rowspan="3">Token (Agrupador)</th><th rowspan="3">Lexemas</th><th colspan="3">Expresiones regulares</th></tr>
+                <tr><th rowspan="2">Notación Regex</th><th colspan="2">Notación por conjuntos</th></tr>
+                <tr><th>Lenguaje</th><th>Notación por conjuntos</th></tr>
+            </thead>
             <tbody>
-            {% for l in lexemas %}
-                <tr class="{{ 'desconocido' if l.token == 'DESCONOCIDO' }}">
-                    <td>{{ loop.index }}</td><td>{{ l.linea }}</td>
-                    <td><code>{{ l.lexema }}</code></td>
-                    <td><span class="token {{ l.token|lower }}">{{ l.token }}</span></td>
+            {% for t in tokens %}
+                <tr>
+                    <td class="izq"><span class="token {{ t.token|lower }}">{{ t.token }}</span></td>
+                    <td class="izq">{% if t.encontrados %}{{ t.encontrados | join(', ') }}{% else %}<span class="nota">(no aparece en el archivo)</span>{% endif %}</td>
+                    <td class="izq"><code class="er-larga">{{ t.er | replace("|", "|​") }}</code></td>
+                    <td class="izq">{{ t.lenguaje }}</td>
+                    <td><b>{{ t.notacion }}</b></td>
                 </tr>
             {% endfor %}
+            {% if desconocidos %}
+                <tr class="desconocido">
+                    <td class="izq"><span class="token desconocido">DESCONOCIDO</span></td>
+                    <td class="izq">{{ desconocidos | join(', ') }}</td>
+                    <td colspan="3" class="izq">No coincide con ninguna expresión regular: error léxico.</td>
+                </tr>
+            {% endif %}
             </tbody>
         </table>
         </div>
-    </section>
+        <p class="nota">P = conjunto de productos · D = conjunto de dígitos (D+ = uno o más dígitos) · M = conjunto de medios de pago.</p>
 
-    <!-- ETAPA 2 (4 a 9): ER, AFND, AFD, tabla, transiciones, quíntupla -->
-    <section class="tarjeta">
-        <h2>Autómatas por lexema</h2>
-        <p class="nota">Los gráficos se generan desde el código (lenguaje DOT de Graphviz), no son imágenes.</p>
-        {% for a in automatas %}
+        <details>
+            <summary>Lexemas encontrados en el archivo ({{ lexemas|length }})</summary>
+            <div class="tabla-scroll"><table>
+                <thead><tr><th>N.º</th><th>Línea</th><th>Lexema</th><th>Token</th></tr></thead>
+                <tbody>{% for l in lexemas %}
+                    <tr class="{{ 'desconocido' if l.token == 'DESCONOCIDO' }}"><td>{{ loop.index }}</td><td>{{ l.linea }}</td>
+                        <td><code>{{ l.lexema }}</code></td><td><span class="token {{ l.token|lower }}">{{ l.token }}</span></td></tr>
+                {% endfor %}</tbody>
+            </table></div>
+        </details>
+
+        <h3>2.2 Máquinas abstractas</h3>
+        <p class="nota">A partir de la ER de cada tipo de token se construye su AFND (método de Thompson) y, a partir del AFND, su AFD (construcción de subconjuntos). Los gráficos se generan desde el código; haz clic en un gráfico para verlo en tamaño real.</p>
+        {% for t in tokens %}
         <details {{ 'open' if loop.first }}>
-            <summary><code>{{ a.lexema }}</code> <span class="token {{ a.token|lower }}">{{ a.token }}</span></summary>
-
-            <h3>4. Expresión Regular</h3>
-            <p class="er">ER = <code>{{ a.er }}</code></p>
-
-            <h3>5. AFND (método de Thompson · {{ a.afnd_estados }} estados)</h3>
-            <div class="grafo" data-dot="{{ a.dot_afnd }}"></div>
-
-            <h3>6. AFD (construcción de subconjuntos)</h3>
-            <div class="grafo" data-dot="{{ a.dot_afd }}"></div>
-
-            <h3>7. Tabla de transiciones</h3>
-            <div class="tabla-scroll">
-            <table>
-                <thead><tr><th></th><th>Estado</th>
-                    {% for s in a.alfabeto %}<th>{{ s }}</th>{% endfor %}
-                    <th>Estados del AFND</th></tr></thead>
-                <tbody>
-                {% for f in a.tabla %}
-                    <tr><td>{{ f.marca }}</td><td><b>{{ f.estado }}</b></td>
-                        {% for c in f.celdas %}<td>{{ c }}</td>{% endfor %}
-                        <td>{{ '{' }}{{ f.subconjunto | join(', ') }}{{ '}' }}</td></tr>
-                {% endfor %}
-                </tbody>
-            </table>
+            <summary><span class="token {{ t.token|lower }}">{{ t.token }}</span> <code>{{ t.er }}</code></summary>
+            <div class="maquinas">
+                <div class="cab">AFND <small>({{ t.afnd_estados }} estados)</small></div>
+                <div class="cab flecha">------&gt;</div>
+                <div class="cab">AFD <small>({{ t.afd_estados }} estados)</small></div>
+                <div class="celda"><div class="grafo" data-dot="{{ t.dot_afnd }}"></div></div>
+                <div class="celda flecha">→</div>
+                <div class="celda"><div class="grafo" data-dot="{{ t.dot_afd }}"></div></div>
             </div>
+            <p class="jflap"><b>Validar en JFLAP:</b>
+                <a class="boton" href="{{ url_for('jflap', token=t.token, tipo='afnd') }}">Descargar AFND (.jff)</a>
+                <a class="boton" href="{{ url_for('jflap', token=t.token, tipo='afd') }}">Descargar AFD (.jff)</a>
+                <span class="nota">Prueba en JFLAP (Input → Multiple Run): «{{ t.prueba_ok }}» se acepta y «{{ t.prueba_mal }}» se rechaza.</span>
+            </p>
+        </details>
+        {% endfor %}
+
+        <h3>2.3 Tabla de transiciones</h3>
+        {% for t in tokens %}
+        <details {{ 'open' if loop.first }}>
+            <summary>AFD de <span class="token {{ t.token|lower }}">{{ t.token }}</span></summary>
+            <div class="tabla-scroll"><table>
+                <thead><tr><th></th><th>Estado</th>{% for s in t.alfabeto %}<th>{{ s }}</th>{% endfor %}<th>Estados del AFND</th></tr></thead>
+                <tbody>{% for f in t.tabla %}
+                    <tr><td>{{ f.marca }}</td><td><b>{{ f.estado }}</b></td>{% for c in f.celdas %}<td>{{ c }}</td>{% endfor %}
+                        <td>{{ '{' }}{{ f.subconjunto | join(', ') }}{{ '}' }}</td></tr>
+                {% endfor %}</tbody>
+            </table></div>
             <p class="nota">→ estado inicial · * estado final · — sin transición</p>
+        </details>
+        {% endfor %}
 
-            <h3>8. Transiciones</h3>
-            <ul class="transiciones">
-                {% for t in a.transiciones %}<li>{{ t }}</li>{% endfor %}
-            </ul>
-
-            <h3>9. Quíntupla</h3>
+        <h3>2.4 Transiciones y quíntupla</h3>
+        {% for t in tokens %}
+        <details>
+            <summary>AFD de <span class="token {{ t.token|lower }}">{{ t.token }}</span></summary>
             <p class="er">M = (Q, Σ, δ, q0, F)</p>
-            <ul class="transiciones">
-                {% for k, v in a.quintupla.items() %}<li><b>{{ k }}</b> = {{ v }}</li>{% endfor %}
-            </ul>
+            <ul class="transiciones">{% for k, v in t.quintupla.items() %}<li><b>{{ k }}</b> = {{ v }}</li>{% endfor %}</ul>
+            <h3>Transiciones δ</h3>
+            <ul class="transiciones columnas">{% for x in t.transiciones %}<li>{{ x }}</li>{% endfor %}</ul>
         </details>
         {% endfor %}
     </section>
 
     <!-- ANÁLISIS SINTÁCTICO LR -->
     <section class="tarjeta">
-        <h2>Análisis sintáctico LR</h2>
-        {% set validos = pedidos | selectattr('valida') | list | length %}
-        <p class="resumen {{ 'ok-fondo' if validos == pedidos|length else 'error-fondo' }}">
-            Pedidos válidos: <b>{{ validos }} de {{ pedidos|length }}</b>
-            {% if validos == pedidos|length %}: todos listos para enviar a cocina.{% else %}: revisa los pedidos marcados antes de enviarlos.{% endif %}
+        <h3 class="sub">2.5 Análisis sintáctico LR</h3>
+        {% set sint = pedidos | selectattr('sintaxis_ok') | list | length %}
+        <p class="resumen {{ 'ok-fondo' if sint == pedidos|length else 'error-fondo' }}">
+            Pedidos sintácticamente correctos: <b>{{ sint }} de {{ pedidos|length }}</b>
         </p>
 
         <h3>Gramática libre de contexto G = (N, T, P, S)</h3>
@@ -150,8 +180,8 @@
         {% for p in pedidos %}
         <details {{ 'open' if loop.first }}>
             <summary><code>{{ p.texto }}</code>
-                {% if p.valida %}<span class="token pago">VÁLIDO</span>{% else %}<span class="token producto">INVÁLIDO</span>{% endif %}</summary>
-            {% if p.error %}<p class="error">{{ p.error }}</p>{% endif %}
+                {% if p.sintaxis_ok %}<span class="token pago">SINTAXIS CORRECTA</span>{% else %}<span class="token producto">ERROR {{ p.fase|upper }}</span>{% endif %}</summary>
+            {% if not p.sintaxis_ok %}<p class="error">{{ p.error }}</p>{% endif %}
             {% if p.pasos %}
             <h3>Pasos del análisis LR</h3>
             <div class="tabla-scroll"><table>
@@ -159,7 +189,7 @@
                 <tbody>{% for s in p.pasos %}<tr><td>{{ loop.index }}</td><td>{{ s.pila }}</td><td>{{ s.simbolos }}</td><td>{{ s.entrada }}</td><td class="izq">{{ s.accion }}</td></tr>{% endfor %}</tbody>
             </table></div>
             {% endif %}
-            {% if p.valida %}
+            {% if p.sintaxis_ok %}
             <h3>Derivación por la derecha</h3>
             <p class="transiciones">{{ p.derivacion | join(' ⇒ ') }}</p>
             <h3>Árbol sintáctico</h3>
@@ -167,6 +197,51 @@
             {% endif %}
         </details>
         {% endfor %}
+    </section>
+
+    <!-- ANÁLISIS SEMÁNTICO -->
+    <section class="tarjeta">
+        <h3 class="sub">2.6 Análisis semántico</h3>
+        <p>Se aplica a los pedidos que pasaron el análisis sintáctico. Reglas del negocio:</p>
+        <ul class="transiciones">{% for c, r in reglas %}<li><b>{{ c }}:</b> {{ r }}</li>{% endfor %}</ul>
+        <div class="tabla-scroll"><table>
+            <thead><tr><th>Línea</th><th>Pedido</th><th>Ítems (producto × cantidad)</th><th>Pago</th><th>Unidades</th><th>Resultado</th></tr></thead>
+            <tbody>{% for p in pedidos %}
+                <tr>
+                    <td>{{ p.linea }}</td><td class="izq"><code>{{ p.texto }}</code></td>
+                    {% if p.semantico %}
+                        <td class="izq">{% for pr, c in p.semantico['items'] %}{{ pr }} × {{ c }}{{ ', ' if not loop.last }}{% endfor %}</td>
+                        <td>{{ p.semantico.pago }}</td><td>{{ p.semantico.unidades }}</td>
+                        <td class="izq">{% if p.semantico.valida %}<span class="token pago">CORRECTO</span>{% else %}<span class="error">{{ p.semantico.errores | join(' ') }}</span>{% endif %}</td>
+                    {% else %}
+                        <td colspan="4" class="izq nota">No se evalúa: el pedido no pasó el análisis {{ p.fase }}.</td>
+                    {% endif %}
+                </tr>
+            {% endfor %}</tbody>
+        </table></div>
+    </section>
+
+    <!-- RESULTADO -->
+    <section class="tarjeta">
+        <h3 class="sub">Resultado de la validación</h3>
+        {% set validos = pedidos | selectattr('valida') | list | length %}
+        <p class="resumen {{ 'ok-fondo' if validos == pedidos|length else 'error-fondo' }}">
+            Pedidos válidos: <b>{{ validos }} de {{ pedidos|length }}</b>
+            {% if validos == pedidos|length %}: todos listos para enviar a cocina.{% else %}: corrige los pedidos marcados antes de enviarlos a cocina.{% endif %}
+        </p>
+        <div class="tabla-scroll"><table>
+            <thead><tr><th>Línea</th><th>Pedido</th><th>Léxico</th><th>Sintáctico</th><th>Semántico</th><th>Resultado</th></tr></thead>
+            <tbody>{% for p in pedidos %}
+                {% set lex_ok = p.fase != 'léxica' %}
+                <tr class="{{ '' if p.valida else 'desconocido' }}">
+                    <td>{{ p.linea }}</td><td class="izq"><code>{{ p.texto }}</code></td>
+                    <td>{{ '✔' if lex_ok else '✘' }}</td>
+                    <td>{{ ('✔' if p.sintaxis_ok else '✘') if lex_ok else '—' }}</td>
+                    <td>{{ ('✔' if p.valida else '✘') if p.sintaxis_ok else '—' }}</td>
+                    <td class="izq">{% if p.valida %}<span class="token pago">VÁLIDO</span>{% else %}<span class="error">{{ p.error }}</span>{% endif %}</td>
+                </tr>
+            {% endfor %}</tbody>
+        </table></div>
     </section>
     {% endif %}
 </main>
@@ -178,6 +253,9 @@
     Viz.instance().then(function (viz) {
         document.querySelectorAll(".grafo").forEach(function (div) {
             div.appendChild(viz.renderSVGElement(div.dataset.dot));
+        });
+        document.querySelectorAll(".maquinas .grafo").forEach(function (div) {
+            div.addEventListener("click", function () { div.classList.toggle("grande"); });
         });
     });
 </script>
